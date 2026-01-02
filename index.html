@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大垣新四国八十八ヶ所霊場 マップ＆リスト</title>
+<style>
+    /* デザイン設定（スマホ対応） */
+    body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+    h1 { text-align: center; color: #2c3e50; font-size: 1.5em; margin-bottom: 20px; }
+    
+    /* 検索ボックス */
+    .search-box { width: 100%; max-width: 600px; margin: 0 auto 20px; display: block; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+
+    /* カード型リスト */
+    .card-container { max-width: 800px; margin: 0 auto; display: grid; gap: 15px; }
+    .card { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #009879; }
+    
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .num { background: #009879; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; }
+    .dist { font-size: 0.85em; color: #666; background: #eee; padding: 2px 6px; border-radius: 4px; }
+    
+    .name { font-size: 1.2em; font-weight: bold; margin: 0; }
+    .address { color: #555; margin-top: 5px; font-size: 0.95em; }
+    
+    /* Googleマップリンクボタン */
+    .map-link { display: inline-block; margin-top: 10px; text-decoration: none; color: #009879; font-weight: bold; font-size: 0.9em; }
+    .map-link:hover { text-decoration: underline; }
+
+    /* ローディング表示 */
+    #loading { text-align: center; margin-top: 50px; font-weight: bold; color: #666; }
+</style>
+</head>
+<body>
+
+<h1>大垣新四国八十八ヶ所霊場</h1>
+
+<input type="text" id="searchInput" class="search-box" placeholder="寺院名、住所、番号で検索..." onkeyup="filterData()">
+
+<div id="loading">データを読み込み中...</div>
+<div id="listArea" class="card-container"></div>
+
+<script>
+    // ★重要★ ここに手順1でコピーしたスプレッドシートのCSV URLを貼り付けてください
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1qrxT318okqXIch_aqXFL-E4HfpiipLx2cqyfwH8FV4-lTQQn6_kG0QucHzA9eY-P8s9m0ioZ4qLj/pub?gid=0&single=true&output=csv";
+
+    let allData = [];
+
+    // ページ読み込み時に実行
+    window.onload = async function() {
+        try {
+            const response = await fetch(SHEET_CSV_URL);
+            const text = await response.text();
+            allData = parseCSV(text);
+            document.getElementById("loading").style.display = "none";
+            renderList(allData);
+        } catch (error) {
+            document.getElementById("loading").innerText = "データの読み込みに失敗しました。" + error;
+        }
+    };
+
+    // CSVを配列に変換する簡易関数
+    function parseCSV(text) {
+        // 改行で分割し、カンマで分割（簡易的な処理）
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(','); // 1行目はヘッダーと仮定
+        
+        const result = [];
+        for (let i = 1; i < lines.length; i++) {
+            // ダブルクォート等の処理が必要な場合はライブラリ推奨だが、今回は簡易実装
+            const currentLine = lines[i].split(',');
+            if(currentLine.length < 2) continue; // 空行スキップ
+
+            // スプレッドシートの列順に合わせて調整してください
+            // 例：0:札番号, 1:寺院名, 2:住所, 3:距離
+            result.push({
+                num: currentLine[0].replace(/"/g, "").trim(),
+                name: currentLine[1].replace(/"/g, "").trim(),
+                address: currentLine[2].replace(/"/g, "").trim(),
+                distance: currentLine[3] ? currentLine[3].replace(/"/g, "").trim() : "-"
+            });
+        }
+        return result;
+    }
+
+    // リストを描画する関数
+    function renderList(data) {
+        const container = document.getElementById("listArea");
+        container.innerHTML = "";
+
+        if (data.length === 0) {
+            container.innerHTML = "<p style='text-align:center'>該当するデータがありません</p>";
+            return;
+        }
+
+        data.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "card";
+            // 住所からGoogleマップの検索URLを生成
+            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address + " " + item.name)}`;
+            
+            div.innerHTML = `
+                <div class="card-header">
+                    <span class="num">${item.num}</span>
+                    <span class="dist">綾野から ${item.distance}km</span>
+                </div>
+                <h2 class="name">${item.name}</h2>
+                <div class="address">${item.address}</div>
+                <a href="${mapUrl}" target="_blank" class="map-link">📍 Googleマップで見る</a>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // 検索フィルタリング関数
+    function filterData() {
+        const keyword = document.getElementById("searchInput").value.toLowerCase();
+        const filtered = allData.filter(item => 
+            item.name.toLowerCase().includes(keyword) || 
+            item.address.toLowerCase().includes(keyword) || 
+            item.num.toLowerCase().includes(keyword)
+        );
+        renderList(filtered);
+    }
+</script>
+
+</body>
+</html>
